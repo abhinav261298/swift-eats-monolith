@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swift Eats - Real Backend Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+        
+        .order-section, .status-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+        }
+        
+        .section-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        .restaurant-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .restaurant-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .restaurant-card.selected {
+            border: 2px solid #3498db;
+            background: #e3f2fd;
+        }
+        
+        .menu-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .btn-success {
+            background: #27ae60;
+        }
+        
+        .btn-success:hover {
+            background: #229954;
+        }
+        
+        .console-log {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        
+        .log-timestamp {
+            color: #95a5a6;
+        }
+        
+        .log-info {
+            color: #3498db;
+        }
+        
+        .log-success {
+            color: #27ae60;
+        }
+        
+        .log-error {
+            color: #e74c3c;
+        }
+        
+        .order-summary {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .connected {
+            background: #27ae60;
+        }
+        
+        .disconnected {
+            background: #e74c3c;
+        }
+        
+        .api-test {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .status-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 4px solid #ecf0f1;
+            background: white;
+            border-radius: 4px;
+        }
+        
+        .status-item.active {
+            border-left-color: #3498db;
+            background: #e3f2fd;
+        }
+        
+        .status-item.completed {
+            border-left-color: #27ae60;
+            background: #e8f5e8;
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">Connecting...</div>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🍕 Swift Eats - Real Backend Demo</h1>
+            <p>Testing with Actual Database & APIs</p>
+        </div>
+        
+        <div class="main-content">
+            <!-- Order Section -->
+            <div class="order-section">
+                <h2 class="section-title">📱 Real API Testing</h2>
+                
+                <div class="api-test">
+                    <h3>Test Backend Connection</h3>
+                    <button class="btn" onclick="testConnection()">Test API Connection</button>
+                    <button class="btn" onclick="loadRealRestaurants()">Load Real Restaurants</button>
+                    <button class="btn" onclick="testAuth()">Test Authentication</button>
+                </div>
+                
+                <div id="restaurantSection">
+                    <h3>Restaurants from Database:</h3>
+                    <div id="restaurantList">
+                        <p>Click "Load Real Restaurants" to fetch from database</p>
+                    </div>
+                </div>
+                
+                <div id="menuSection" class="hidden">
+                    <h3>Menu Items:</h3>
+                    <div id="menuItems"></div>
+                    <div class="order-summary" id="orderSummary" class="hidden">
+                        <h4>Order Summary</h4>
+                        <div id="selectedItems"></div>
+                        <div id="totalAmount"></div>
+                        <button class="btn btn-success" onclick="placeRealOrder()">Place Real Order</button>
+                    </div>
+                </div>
+                
+                <div id="orderActions" class="hidden">
+                    <h3>Order Management:</h3>
+                    <button class="btn" onclick="getOrderStatus()">Get Order Status</button>
+                    <button class="btn" onclick="processPayment()">Process Payment</button>
+                    <button class="btn" onclick="assignRealDriver()">Assign Driver</button>
+                    <button class="btn btn-success" onclick="completeOrder()">Complete Order</button>
+                </div>
+            </div>
+            
+            <!-- Status Section -->
+            <div class="status-section">
+                <h2 class="section-title">📊 Real-time Status</h2>
+                
+                <div id="orderStatusSection">
+                    <h3>Current Order Status:</h3>
+                    <div id="statusDisplay">
+                        <div class="status-item" id="status-placed">Order Placed</div>
+                        <div class="status-item" id="status-confirmed">Order Confirmed</div>
+                        <div class="status-item" id="status-payment">Payment Processed</div>
+                        <div class="status-item" id="status-preparing">Preparing Food</div>
+                        <div class="status-item" id="status-driver">Driver Assigned</div>
+                        <div class="status-item" id="status-delivery">Out for Delivery</div>
+                        <div class="status-item" id="status-delivered">Delivered</div>
+                    </div>
+                </div>
+                
+                <div id="realtimeSection">
+                    <h3>Real-time Updates:</h3>
+                    <button class="btn" onclick="connectWebSocket()">Connect WebSocket</button>
+                    <button class="btn" onclick="startDriverSimulator()">Start Driver Simulator</button>
+                </div>
+                
+                <div class="console-log" id="consoleLog">
+                    <div class="log-entry log-info">
+                        <span class="log-timestamp">[System]</span> Swift Eats Real Backend Demo Ready
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        // Configuration
+        const API_BASE = 'http://localhost:6988/api/v1';
+        const WS_URL = 'http://localhost:6988';
+        
+        // Global variables
+        let socket;
+        let currentUser = null;
+        let selectedRestaurant = null;
+        let selectedItems = [];
+        let currentOrder = null;
+        let authToken = null;
+        
+        // Initialize
+        function init() {
+            log('Initializing Swift Eats Real Backend Demo', 'info');
+            updateConnectionStatus(false);
+        }
+        
+        // Test API connection
+        async function testConnection() {
+            log('Testing API connection...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/catalog/restaurants`);
+                if (response.ok) {
+                    log('✅ API connection successful!', 'success');
+                    updateConnectionStatus(true);
+                } else {
+                    log(`❌ API connection failed: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ API connection error: ${error.message}`, 'error');
+                log('Make sure the backend server is running on port 6988', 'error');
+            }
+        }
+        
+        // Load real restaurants from database
+        async function loadRealRestaurants() {
+            log('Loading restaurants from database...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/catalog/restaurants`);
+                if (response.ok) {
+                    const restaurants = await response.json();
+                    log(`✅ Loaded ${restaurants.length} restaurants from database`, 'success');
+                    displayRestaurants(restaurants);
+                } else {
+                    log(`❌ Failed to load restaurants: ${response.status}`, 'error');
+                    // Fallback to mock data
+                    displayMockRestaurants();
+                }
+            } catch (error) {
+                log(`❌ Error loading restaurants: ${error.message}`, 'error');
+                displayMockRestaurants();
+            }
+        }
+        
+        // Display restaurants
+        function displayRestaurants(restaurants) {
+            const restaurantList = document.getElementById('restaurantList');
+            restaurantList.innerHTML = '';
+            
+            if (restaurants.length === 0) {
+                restaurantList.innerHTML = '<p>No restaurants found in database. Using mock data...</p>';
+                displayMockRestaurants();
+                return;
+            }
+            
+            restaurants.forEach(restaurant => {
+                const card = document.createElement('div');
+                card.className = 'restaurant-card';
+                card.onclick = () => selectRestaurant(restaurant);
+                card.innerHTML = `
+                    <h4>${restaurant.name}</h4>
+                    <p>${restaurant.description || 'No description available'}</p>
+                    <small>ID: ${restaurant.id}</small>
+                `;
+                restaurantList.appendChild(card);
+            });
+        }
+        
+        // Display mock restaurants as fallback
+        function displayMockRestaurants() {
+            const mockRestaurants = [
+                {
+                    id: 'mock-rest-1',
+                    name: 'Demo Pizza Palace',
+                    description: 'Mock restaurant for testing',
+                    menu: [
+                        { id: 'mock-item-1', name: 'Test Pizza', price: 12.99 },
+                        { id: 'mock-item-2', name: 'Test Burger', price: 10.99 }
+                    ]
+                }
+            ];
+            
+            displayRestaurants(mockRestaurants);
+            log('Using mock restaurant data', 'info');
+        }
+        
+        // Select restaurant and load menu
+        async function selectRestaurant(restaurant) {
+            selectedRestaurant = restaurant;
+            log(`Selected restaurant: ${restaurant.name}`, 'info');
+            
+            // Update UI
+            document.querySelectorAll('.restaurant-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.target.closest('.restaurant-card').classList.add('selected');
+            
+            // Load menu
+            await loadRestaurantMenu(restaurant.id);
+        }
+        
+        // Load restaurant menu
+        async function loadRestaurantMenu(restaurantId) {
+            log(`Loading menu for restaurant ${restaurantId}...`, 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/catalog/restaurants/${restaurantId}/menu`);
+                if (response.ok) {
+                    const menu = await response.json();
+                    log(`✅ Loaded ${menu.length} menu items`, 'success');
+                    displayMenu(menu);
+                } else {
+                    log(`❌ Failed to load menu: ${response.status}`, 'error');
+                    // Use mock menu
+                    displayMenu(selectedRestaurant.menu || []);
+                }
+            } catch (error) {
+                log(`❌ Error loading menu: ${error.message}`, 'error');
+                displayMenu(selectedRestaurant.menu || []);
+            }
+        }
+        
+        // Display menu
+        function displayMenu(menu) {
+            const menuItems = document.getElementById('menuItems');
+            menuItems.innerHTML = '';
+            
+            if (menu.length === 0) {
+                menuItems.innerHTML = '<p>No menu items available</p>';
+                return;
+            }
+            
+            menu.forEach(item => {
+                const menuItem = document.createElement('div');
+                menuItem.className = 'menu-item';
+                menuItem.innerHTML = `
+                    <div>
+                        <strong>${item.name}</strong>
+                        <div>$${item.price}</div>
+                    </div>
+                    <button class="btn" onclick="addToOrder('${item.id}', '${item.name}', ${item.price})">
+                        Add to Order
+                    </button>
+                `;
+                menuItems.appendChild(menuItem);
+            });
+            
+            document.getElementById('menuSection').classList.remove('hidden');
+        }
+        
+        // Add item to order
+        function addToOrder(id, name, price) {
+            const existingItem = selectedItems.find(item => item.id === id);
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                selectedItems.push({ id, name, price, quantity: 1 });
+            }
+            
+            updateOrderSummary();
+            log(`Added ${name} to order`, 'info');
+        }
+        
+        // Update order summary
+        function updateOrderSummary() {
+            const selectedItemsDiv = document.getElementById('selectedItems');
+            const totalAmountDiv = document.getElementById('totalAmount');
+            
+            selectedItemsDiv.innerHTML = '';
+            let total = 0;
+            
+            selectedItems.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>${item.name} x${item.quantity}</span>
+                        <span>$${(item.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                `;
+                selectedItemsDiv.appendChild(itemDiv);
+                total += item.price * item.quantity;
+            });
+            
+            totalAmountDiv.innerHTML = `<strong>Total: $${total.toFixed(2)}</strong>`;
+            document.getElementById('orderSummary').classList.remove('hidden');
+        }
+        
+        // Place real order
+        async function placeRealOrder() {
+            if (selectedItems.length === 0) {
+                log('Please select items before placing order', 'error');
+                return;
+            }
+            
+            log('Placing real order via API...', 'info');
+            
+            const orderData = {
+                restaurantId: selectedRestaurant.id,
+                items: selectedItems.map(item => ({
+                    menuItemId: item.id,
+                    quantity: item.quantity,
+                    specialInstructions: ''
+                })),
+                deliveryAddress: '123 Demo Street, Demo City',
+                specialInstructions: 'Real order from Swift Eats demo'
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/orders`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+                    },
+                    body: JSON.stringify(orderData)
+                });
+                
+                if (response.ok) {
+                    currentOrder = await response.json();
+                    log(`✅ Order placed successfully! Order ID: ${currentOrder.id}`, 'success');
+                    updateOrderStatus('PLACED');
+                    document.getElementById('orderActions').classList.remove('hidden');
+                } else {
+                    const error = await response.text();
+                    log(`❌ Failed to place order: ${response.status} - ${error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error placing order: ${error.message}`, 'error');
+            }
+        }
+        
+        // Test authentication
+        async function testAuth() {
+            log('Testing authentication...', 'info');
+            
+            const loginData = {
+                email: 'demo@swifteats.com',
+                password: 'demo123'
+            };
+            
+            try {
+                // Try to register first
+                const registerResponse = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...loginData,
+                        firstName: 'Demo',
+                        lastName: 'User'
+                    })
+                });
+                
+                if (registerResponse.ok) {
+                    log('✅ User registered successfully', 'success');
+                }
+                
+                // Now try to login
+                const loginResponse = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(loginData)
+                });
+                
+                if (loginResponse.ok) {
+                    const authResult = await loginResponse.json();
+                    authToken = authResult.accessToken || authResult.access_token;
+                    currentUser = authResult.user;
+                    log('✅ Authentication successful!', 'success');
+                    log(`Logged in as: ${currentUser.email}`, 'info');
+                    updateAuthStatus(true);
+                } else {
+                    log(`❌ Authentication failed: ${loginResponse.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Authentication error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Get order status
+        async function getOrderStatus() {
+            if (!currentOrder) {
+                log('No current order to check', 'error');
+                return;
+            }
+            
+            log(`Checking status for order ${currentOrder.id}...`, 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/orders/${currentOrder.id}`, {
+                    headers: {
+                        ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+                    }
+                });
+                
+                if (response.ok) {
+                    const order = await response.json();
+                    log(`✅ Order status: ${order.status}`, 'success');
+                    updateOrderStatus(order.status);
+                } else {
+                    log(`❌ Failed to get order status: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error getting order status: ${error.message}`, 'error');
+            }
+        }
+        
+        // Process payment
+        async function processPayment() {
+            if (!currentOrder) {
+                log('No current order for payment', 'error');
+                return;
+            }
+            
+            log('Processing payment...', 'info');
+            
+            const paymentData = {
+                orderId: currentOrder.id,
+                amount: selectedItems.reduce((total, item) => total + (item.price * item.quantity), 0),
+                method: 'credit_card'
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/payments`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+                    },
+                    body: JSON.stringify(paymentData)
+                });
+                
+                if (response.ok) {
+                    const payment = await response.json();
+                    log(`✅ Payment processed! ID: ${payment.id}`, 'success');
+                    updateOrderStatus('CONFIRMED');
+                    
+                    // Update payment status in UI
+                    setTimeout(() => {
+                        updateOrderStatus('PREPARING');
+                        log('Restaurant is preparing your order...', 'info');
+                    }, 2000);
+                } else {
+                    log(`❌ Payment failed: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Payment error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Assign real driver
+        async function assignRealDriver() {
+            if (!currentOrder) {
+                log('No current order for driver assignment', 'error');
+                return;
+            }
+            
+            log('Assigning driver...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/logistics/assign/${currentOrder.id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+                    },
+                    body: JSON.stringify({
+                        latitude: 12.9716,
+                        longitude: 77.5946
+                    })
+                });
+                
+                if (response.ok) {
+                    const assignment = await response.json();
+                    log(`✅ Driver assigned: ${assignment.partnerId}`, 'success');
+                    updateOrderStatus('DRIVER_ASSIGNED');
+                } else {
+                    log(`❌ Driver assignment failed: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Driver assignment error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Complete Order function
+        async function completeOrder() {
+            if (!currentOrder) {
+                log('No current order to complete', 'error');
+                return;
+            }
+            
+            log('Completing order...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/orders/${currentOrder.id}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+                    },
+                    body: JSON.stringify({
+                        status: 'delivered'
+                    })
+                });
+                
+                if (response.ok) {
+                    const updatedOrder = await response.json();
+                    log('✅ Order completed successfully!', 'success');
+                    updateOrderStatus('DELIVERED');
+                    
+                    // Stop GPS updates
+                    stopGPSUpdates();
+                    
+                    // Stop driver simulator
+                    await stopDriverSimulator();
+                    
+                    // Close WebSocket
+                    if (socket) {
+                        socket.disconnect();
+                        log('🔌 WebSocket disconnected', 'info');
+                    }
+                } else {
+                    log(`❌ Failed to complete order: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error completing order: ${error.message}`, 'error');
+            }
+        }
+        
+        // Connect WebSocket
+        function connectWebSocket() {
+            log('Connecting to WebSocket...', 'info');
+            
+            try {
+                socket = io(WS_URL);
+                
+                socket.on('connect', () => {
+                    log('✅ WebSocket connected!', 'success');
+                    if (currentOrder) {
+                        socket.emit('join-room', `order-${currentOrder.id}`);
+                        log(`Joined room: order-${currentOrder.id}`, 'info');
+                    }
+                });
+                
+                socket.on('disconnect', () => {
+                    log('❌ WebSocket disconnected', 'error');
+                });
+                
+                socket.on('order-status-changed', (data) => {
+                    log(`📡 Real-time update: Order status changed to ${data.status}`, 'success');
+                    updateOrderStatus(data.status);
+                });
+                
+                socket.on('delivery-location', (data) => {
+                    log(`📍 Driver location: ${data.latitude}, ${data.longitude}`, 'info');
+                });
+                
+                socket.on('user-notification', (data) => {
+                    log(`🔔 Notification: ${data.message}`, 'info');
+                });
+                
+            } catch (error) {
+                log(`❌ WebSocket connection error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Start driver simulator
+        async function startDriverSimulator() {
+            log('Starting driver simulator...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/simulator/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        drivers: 5,
+                        eps: 2
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    log(`✅ Driver simulator started! Status: ${result.status}`, 'success');
+                    
+                    // Start showing GPS updates in UI
+                    startGPSUpdates();
+                } else {
+                    log('❌ Failed to start driver simulator', 'error');
+                }
+            } catch (error) {
+                log(`❌ Driver simulator error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Stop driver simulator
+        async function stopDriverSimulator() {
+            try {
+                const response = await fetch(`${API_BASE}/simulator/stop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    log(`✅ Driver simulator stopped! Status: ${result.status}`, 'success');
+                } else {
+                    log('❌ Failed to stop driver simulator', 'error');
+                }
+            } catch (error) {
+                log(`❌ Driver simulator stop error: ${error.message}`, 'error');
+            }
+        }
+        
+        // GPS tracking variables
+        let gpsInterval = null;
+        
+        // Start GPS Updates in UI
+        function startGPSUpdates() {
+            // Clear any existing interval
+            if (gpsInterval) {
+                clearInterval(gpsInterval);
+            }
+            
+            // Simulate GPS updates every 5 seconds
+            gpsInterval = setInterval(() => {
+                const lat = (12.9716 + (Math.random() - 0.5) * 0.01).toFixed(6);
+                const lng = (77.5946 + (Math.random() - 0.5) * 0.01).toFixed(6);
+                
+                log(`📍 Driver GPS Update: ${lat}, ${lng}`, 'info');
+                
+                // Calculate estimated time (random between 5-15 minutes)
+                const eta = Math.floor(Math.random() * 10) + 5;
+                log(`🕰️ ETA: ${eta} minutes`, 'info');
+            }, 5000);
+        }
+        
+        // Stop GPS Updates
+        function stopGPSUpdates() {
+            if (gpsInterval) {
+                clearInterval(gpsInterval);
+                gpsInterval = null;
+                log('📍 GPS tracking stopped', 'info');
+            }
+        }
+        
+        // Update order status UI
+        function updateOrderStatus(status) {
+            const statusMap = {
+                'PLACED': 'status-placed',
+                'CONFIRMED': 'status-confirmed',
+                'PREPARING': 'status-preparing',
+                'DRIVER_ASSIGNED': 'status-driver',
+                'OUT_FOR_DELIVERY': 'status-delivery',
+                'DELIVERED': 'status-delivered'
+            };
+            
+            // Reset all statuses
+            document.querySelectorAll('.status-item').forEach(item => {
+                item.classList.remove('active', 'completed');
+            });
+            
+            // Update status
+            const statusOrder = ['PLACED', 'CONFIRMED', 'PREPARING', 'DRIVER_ASSIGNED', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+            const currentIndex = statusOrder.indexOf(status);
+            
+            for (let i = 0; i <= currentIndex; i++) {
+                const statusElement = document.getElementById(statusMap[statusOrder[i]]);
+                if (statusElement) {
+                    if (i === currentIndex) {
+                        statusElement.classList.add('active');
+                    } else {
+                        statusElement.classList.add('completed');
+                    }
+                }
+            }
+        }
+        
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.textContent = 'Backend Connected';
+                status.className = 'connection-status connected';
+            } else {
+                status.textContent = 'Backend Disconnected';
+                status.className = 'connection-status disconnected';
+            }
+        }
+        
+        // Logging function
+        function log(message, type = 'info') {
+            const consoleLog = document.getElementById('consoleLog');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            logEntry.innerHTML = `
+                <span class="log-timestamp">[${timestamp}]</span> ${message}
+            `;
+            
+            consoleLog.appendChild(logEntry);
+            consoleLog.scrollTop = consoleLog.scrollHeight;
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

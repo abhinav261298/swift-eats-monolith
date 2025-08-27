@@ -1,0 +1,701 @@
+openapi: 3.1.0
+info:
+  title: Swift Eats API
+  description: |
+    Comprehensive API for Swift Eats food delivery platform featuring:
+    - Real-time driver telemetry and GPS tracking
+    - Order management with state machine
+    - Payment processing with webhooks
+    - WebSocket integration for live updates
+    - JWT authentication and authorization
+  version: 1.0.0
+  contact:
+    name: Swift Eats Engineering
+    email: engineering@swifteats.com
+
+servers:
+  - url: http://localhost:3002/api/v1
+    description: Development server
+  - url: https://api.swifteats.com/api/v1
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # Auth Schemas
+    LoginDto:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        password:
+          type: string
+          minLength: 6
+          example: "password123"
+
+    RegisterDto:
+      type: object
+      required: [email, password, firstName, lastName]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [customer, driver, admin]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Order Schemas
+    CreateOrderDto:
+      type: object
+      required: [restaurantId, items]
+      properties:
+        restaurantId:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateOrderItemDto'
+        deliveryAddress:
+          type: string
+        specialInstructions:
+          type: string
+
+    CreateOrderItemDto:
+      type: object
+      required: [menuItemId, quantity]
+      properties:
+        menuItemId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+        specialRequests:
+          type: string
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        restaurantId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [placed, confirmed, preparing, picked_up, delivered, cancelled]
+        subtotal:
+          type: number
+          format: float
+        tax:
+          type: number
+          format: float
+        deliveryFee:
+          type: number
+          format: float
+        total:
+          type: number
+          format: float
+        deliveryAddress:
+          type: string
+        driverId:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UpdateOrderStatusDto:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [confirmed, preparing, picked_up, delivered, cancelled]
+        driverId:
+          type: string
+          format: uuid
+          nullable: true
+
+    # Payment Schemas
+    PaymentIntent:
+      type: object
+      properties:
+        id:
+          type: string
+        amount:
+          type: integer
+          description: "Amount in cents"
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [requires_confirmation, succeeded, failed]
+        clientSecret:
+          type: string
+
+    ConfirmPaymentDto:
+      type: object
+      required: [paymentIntentId]
+      properties:
+        paymentIntentId:
+          type: string
+        paymentMethodId:
+          type: string
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: float
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+        paymentMethod:
+          type: string
+        transactionId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # Telemetry Schemas
+    IngestTelemetryDto:
+      type: object
+      required: [locations]
+      properties:
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DriverLocationDto'
+
+    DriverLocationDto:
+      type: object
+      required: [driverId, ts, lat, lng]
+      properties:
+        driverId:
+          type: string
+        ts:
+          type: integer
+          format: int64
+          description: "Unix timestamp in milliseconds"
+        lat:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        lng:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+        accuracy:
+          type: number
+          format: float
+        speed:
+          type: number
+          format: float
+          description: "Speed in km/h"
+        heading:
+          type: number
+          format: float
+          description: "Heading in degrees"
+
+    DriverLocation:
+      type: object
+      properties:
+        driverId:
+          type: string
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+        accuracy:
+          type: number
+          format: float
+        speed:
+          type: number
+          format: float
+        heading:
+          type: number
+          format: float
+        timestamp:
+          type: string
+          format: date-time
+        ingestedAt:
+          type: string
+          format: date-time
+
+    TelemetryMetrics:
+      type: object
+      properties:
+        totalIngested:
+          type: integer
+        ingestRate:
+          type: number
+          format: float
+          description: "Events per second"
+        activeDrivers:
+          type: integer
+        queueSize:
+          type: integer
+        lastUpdate:
+          type: string
+          format: date-time
+
+    # Error Schemas
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        statusCode:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+paths:
+  # Authentication Endpoints
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDto'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginDto'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/profile:
+    get:
+      tags: [Authentication]
+      summary: Get user profile
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # Order Endpoints
+  /orders:
+    post:
+      tags: [Orders]
+      summary: Create new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderDto'
+      responses:
+        '201':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+    get:
+      tags: [Orders]
+      summary: Get user orders
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [placed, confirmed, preparing, picked_up, delivered, cancelled]
+      responses:
+        '200':
+          description: Orders retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+
+  /orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Get order by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Order retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    patch:
+      tags: [Orders]
+      summary: Update order status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderStatusDto'
+      responses:
+        '200':
+          description: Order status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /orders/{id}/cancel:
+    post:
+      tags: [Orders]
+      summary: Cancel order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Order cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  # Payment Endpoints
+  /payments/intent:
+    post:
+      tags: [Payments]
+      summary: Create payment intent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderId, amount]
+              properties:
+                orderId:
+                  type: string
+                  format: uuid
+                amount:
+                  type: number
+                  format: float
+      responses:
+        '201':
+          description: Payment intent created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntent'
+
+  /payments/confirm:
+    post:
+      tags: [Payments]
+      summary: Confirm payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmPaymentDto'
+      responses:
+        '200':
+          description: Payment confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /payments/webhook:
+    post:
+      tags: [Payments]
+      summary: Payment webhook
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  # Telemetry Endpoints
+  /telemetry/ingest:
+    post:
+      tags: [Telemetry]
+      summary: Ingest GPS telemetry data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestTelemetryDto'
+      responses:
+        '200':
+          description: Telemetry data ingested
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  processed:
+                    type: integer
+
+  /telemetry/drivers/{driverId}/location:
+    get:
+      tags: [Telemetry]
+      summary: Get driver current location
+      parameters:
+        - name: driverId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Driver location retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverLocation'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /telemetry/drivers/{driverId}/history:
+    get:
+      tags: [Telemetry]
+      summary: Get driver location history
+      parameters:
+        - name: driverId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: Location history retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DriverLocation'
+
+  /telemetry/metrics:
+    get:
+      tags: [Telemetry]
+      summary: Get telemetry metrics
+      responses:
+        '200':
+          description: Metrics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelemetryMetrics'
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Orders
+    description: Order lifecycle management
+  - name: Payments
+    description: Payment processing and webhooks
+  - name: Telemetry
+    description: GPS tracking and driver telemetry
+
+# WebSocket Documentation
+x-websocket-info:
+  description: |
+    ## WebSocket Real-time Events
+
+    ### Connection: ws://localhost:3002/ws
+
+    ### Authentication
+    JWT required via Authorization header, query param, or auth object.
+
+    ### Room Management
+    Join rooms for targeted updates:
+    - Order rooms: "order:{orderId}"
+    - Driver rooms: "driver:{driverId}"
+
+    ### Events
+    - joinRoom: Join a specific room
+    - driverLocation: Real-time driver location updates
+    - orderStatusUpdate: Order status changes
+    - disconnect: Clean disconnection

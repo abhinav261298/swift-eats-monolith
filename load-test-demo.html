@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swift Eats - Load Testing Demo (50 Drivers, 10 Events/sec)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .main-content {
+            padding: 30px;
+        }
+        
+        .load-test-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .btn.success {
+            background: #27ae60;
+        }
+        
+        .btn.danger {
+            background: #e74c3c;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .metric-label {
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        
+        .console-log {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        
+        .log-timestamp {
+            color: #95a5a6;
+        }
+        
+        .log-success {
+            color: #2ecc71;
+        }
+        
+        .log-error {
+            color: #e74c3c;
+        }
+        
+        .log-info {
+            color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚗 Swift Eats Load Testing Demo</h1>
+            <p>Data Simulator: 50 Drivers @ 10 Events/Second</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="load-test-section">
+                <h2>Load Testing Controls</h2>
+                <button class="btn success" onclick="startLoadTest()">Start Load Test (50 Drivers, 10 Events/sec)</button>
+                <button class="btn" onclick="startCustomTest()">Custom Test</button>
+                <button class="btn danger" onclick="stopLoadTest()">Stop Load Test</button>
+                <button class="btn" onclick="getMetrics()">Get Metrics</button>
+            </div>
+            
+            <div class="load-test-section">
+                <h2>Custom Load Test Parameters</h2>
+                <label>Number of Drivers: <input type="number" id="driverCount" value="50" min="1" max="100"></label>
+                <label>Events per Second: <input type="number" id="eventsPerSec" value="10" min="1" max="50"></label>
+            </div>
+            
+            <div class="load-test-section">
+                <h2>Real-time Metrics</h2>
+                <div class="metrics" id="metricsDisplay">
+                    <div class="metric-card">
+                        <div class="metric-value" id="activeDrivers">0</div>
+                        <div class="metric-label">Active Drivers</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="eventsPerSecond">0</div>
+                        <div class="metric-label">Events/Second</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="availableDrivers">0</div>
+                        <div class="metric-label">Available Drivers</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="busyDrivers">0</div>
+                        <div class="metric-label">Busy Drivers</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="load-test-section">
+                <h2>System Logs</h2>
+                <div class="console-log" id="consoleLog">
+                    <div class="log-entry log-info">
+                        <span class="log-timestamp">[System]</span> Load Testing Demo Ready
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:6988/api/v1';
+        let metricsInterval = null;
+
+        // Start load test with 50 drivers, 10 events/sec
+        async function startLoadTest() {
+            log('🚀 Starting load test: 50 drivers, 10 events/second...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/simulator/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        drivers: 50,
+                        eps: 10
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    log(`✅ Load test started! ${result.activeDrivers} drivers at ${result.eventsPerSecond} events/sec`, 'success');
+                    startMetricsUpdates();
+                } else {
+                    log('❌ Failed to start load test', 'error');
+                }
+            } catch (error) {
+                log(`❌ Load test error: ${error.message}`, 'error');
+            }
+        }
+
+        // Start custom test with user parameters
+        async function startCustomTest() {
+            const drivers = parseInt(document.getElementById('driverCount').value);
+            const eps = parseInt(document.getElementById('eventsPerSec').value);
+            
+            log(`🚀 Starting custom test: ${drivers} drivers, ${eps} events/second...`, 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/simulator/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        drivers: drivers,
+                        eps: eps
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    log(`✅ Custom test started! ${result.activeDrivers} drivers at ${result.eventsPerSecond} events/sec`, 'success');
+                    startMetricsUpdates();
+                } else {
+                    log('❌ Failed to start custom test', 'error');
+                }
+            } catch (error) {
+                log(`❌ Custom test error: ${error.message}`, 'error');
+            }
+        }
+
+        // Stop load test
+        async function stopLoadTest() {
+            log('🛑 Stopping load test...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/simulator/stop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    log(`✅ Load test stopped! Status: ${result.status}`, 'success');
+                    stopMetricsUpdates();
+                } else {
+                    log('❌ Failed to stop load test', 'error');
+                }
+            } catch (error) {
+                log(`❌ Stop test error: ${error.message}`, 'error');
+            }
+        }
+
+        // Get current metrics
+        async function getMetrics() {
+            try {
+                const response = await fetch(`${API_BASE}/simulator/status`);
+                
+                if (response.ok) {
+                    const metrics = await response.json();
+                    updateMetricsDisplay(metrics);
+                    log(`📊 Metrics: ${metrics.activeDrivers} drivers, ${metrics.eventsPerSecond} events/sec, ${metrics.availableDrivers} available`, 'info');
+                } else {
+                    log('❌ Failed to get metrics', 'error');
+                }
+            } catch (error) {
+                log(`❌ Metrics error: ${error.message}`, 'error');
+            }
+        }
+
+        // Start automatic metrics updates
+        function startMetricsUpdates() {
+            if (metricsInterval) {
+                clearInterval(metricsInterval);
+            }
+            
+            metricsInterval = setInterval(async () => {
+                await getMetrics();
+            }, 2000); // Update every 2 seconds
+        }
+
+        // Stop automatic metrics updates
+        function stopMetricsUpdates() {
+            if (metricsInterval) {
+                clearInterval(metricsInterval);
+                metricsInterval = null;
+            }
+            
+            // Reset metrics display
+            updateMetricsDisplay({
+                activeDrivers: 0,
+                eventsPerSecond: 0,
+                availableDrivers: 0,
+                busyDrivers: 0
+            });
+        }
+
+        // Update metrics display
+        function updateMetricsDisplay(metrics) {
+            document.getElementById('activeDrivers').textContent = metrics.activeDrivers || 0;
+            document.getElementById('eventsPerSecond').textContent = metrics.eventsPerSecond || 0;
+            document.getElementById('availableDrivers').textContent = metrics.availableDrivers || 0;
+            document.getElementById('busyDrivers').textContent = metrics.busyDrivers || 0;
+        }
+
+        // Logging function
+        function log(message, type = 'info') {
+            const consoleLog = document.getElementById('consoleLog');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            logEntry.innerHTML = `
+                <span class="log-timestamp">[${timestamp}]</span> ${message}
+            `;
+            
+            consoleLog.appendChild(logEntry);
+            consoleLog.scrollTop = consoleLog.scrollHeight;
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            log('🚗 Load Testing Demo initialized', 'info');
+            log('📋 Assignment Requirements: 50 drivers, 10 events/sec', 'info');
+        });
+    </script>
+</body>
+</html>
